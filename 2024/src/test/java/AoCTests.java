@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.regex.MatchResult;
 import java.util.regex.Pattern;
@@ -585,10 +586,84 @@ class AoCTests {
     @Test
     void day10() throws IOException {
 
+        List<String> input = Files.readAllLines(Path.of(getJDDfile("jdd10.txt").toString()));
+        int colmax = input.getFirst().length();
+//        int rowmax = input.size();
 
+        Map<Integer, List<Integer>> adjList = new HashMap<>();
+        Integer[] oneLine = Arrays.stream(String.join("", input).split("")).mapToInt(Integer::parseInt).boxed().toList().toArray(new Integer[0]);
+        int nbNode = oneLine.length;
+        List<Integer> trailheads = new ArrayList<>();
+        List<Integer> trailtails = new ArrayList<>();
 
-        System.out.println("part 1 : ");
-        System.out.println("part 2 : ");
+        for (int n = 0; n < nbNode; n++) {
+            adjList.putIfAbsent(n, new ArrayList<>());
+            if (oneLine[n] == 0) trailheads.add(n);
+            if (oneLine[n] == 9) trailtails.add(n);
+            if ((n % colmax) - 1 >= 0 && oneLine[n-1] == oneLine[n] + 1) {
+                adjList.get(n).add(n-1);
+            }
+            if ((n % colmax) + 1 < colmax && oneLine[n+1] == oneLine[n] + 1) {
+                adjList.get(n).add(n+1);
+            }
+            if ( n - colmax >= 0 && oneLine[n-colmax] == oneLine[n] + 1) {
+                adjList.get(n).add(n-colmax);
+            }
+            if ( (n + colmax) < nbNode && oneLine[n+colmax] == oneLine[n] + 1) {
+                adjList.get(n).add(n+colmax);
+            }
+        }
+
+        int nbPath = 0;
+        List<List<Integer>> paths = new ArrayList<>();
+
+        for (Integer trailhead: trailheads) {
+            Set<Integer> reachablePeaks = new HashSet<>();
+            Stack<Integer> stack = new Stack<>();
+            boolean[] isVisited = new boolean[adjList.size()];
+
+            stack.push(trailhead);
+            while (!stack.isEmpty()) {
+                int currentNode = stack.pop();
+                if (!isVisited[currentNode]) {
+                    isVisited[currentNode] = true;
+                    if (adjList.get(currentNode).isEmpty() && oneLine[currentNode] == 9) {
+                        reachablePeaks.add(currentNode);
+                    } else {
+                        adjList.get(currentNode).stream().filter(n -> !isVisited[n]).forEach(stack::push);
+                    }
+                }
+            }
+            nbPath += reachablePeaks.size();
+
+            List<Integer> path = new ArrayList<>();
+            boolean[] isVisited2 = new boolean[adjList.size()];
+            dfs(adjList, -1, trailhead, isVisited2, path, trailtails, paths);
+        }
+
+        System.out.println("part 1 : " + nbPath);
+        System.out.println("part 2 : " + paths.size());
+    }
+
+    private void dfs(Map<Integer, List<Integer>> graph, int source, int destination, boolean[] isVisited, List<Integer> currentPath, List<Integer> endPoints, List<List<Integer>> paths) {
+        if (source < 0) {
+            source = destination;
+            currentPath.add(source);
+        }
+        if (currentPath.size() == 10 && endPoints.contains(source)) {
+            paths.add(currentPath.stream().toList());
+        }
+
+        isVisited[source] = true;
+
+        for (Integer i : graph.get(source)) {
+            if (!isVisited[i]) {
+                currentPath.add(i);
+                dfs(graph, i, destination, isVisited, currentPath, endPoints, paths);
+                currentPath.remove(i);
+            }
+        }
+        isVisited[source] = false;
     }
 
     private File getJDDfile(String JDDname) {
